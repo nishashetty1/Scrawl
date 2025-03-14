@@ -9,8 +9,9 @@ from pdf2image import convert_from_path
 from image_processor import HandwritingEnhancer
 from ocr_handler import EnhancedOCRHandler
 import gc
-import psutil
 from dotenv import load_dotenv
+from datetime import datetime
+
 load_dotenv()
 
 class OptimizedApp:
@@ -53,7 +54,7 @@ class OptimizedApp:
             page_title="Advanced OCR with Gemini",
             page_icon="✍️",
             layout="wide",
-            initial_sidebar_state="expanded"
+            initial_sidebar_state="collapsed"
         )
         
         st.markdown("""
@@ -88,10 +89,21 @@ class OptimizedApp:
                 border-radius: 5px;
                 margin: 10px 0;
             }
-            .memory-info {
-                font-size: 0.8em;
-                color: #888;
-                margin-top: 5px;
+            .stats-box {
+                background-color: #2E2E2E;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 10px 0;
+            }
+            .header-box {
+                padding: 10px;
+                border-radius: 5px;
+                background-color: #2E2E2E;
+                margin-bottom: 20px;
+            }
+            div[data-testid="stCodeBlock"] {
+                max-height: 400px;
+                overflow-y: auto;
             }
             </style>
             """, unsafe_allow_html=True)
@@ -106,11 +118,11 @@ class OptimizedApp:
                 image = cv2.resize(image, None, fx=scale, fy=scale)
             
             # Process in steps with memory clearing
-            with st.spinner("Enhancing image..."):
+            with st.spinner("✨ Enhancing image..."):
                 enhanced_image = self.enhancer.enhance_handwriting(image)
                 gc.collect()
             
-            with st.spinner("Extracting text..."):
+            with st.spinner("🔍 Extracting text..."):
                 # Save enhanced image temporarily
                 with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
                     cv2.imwrite(tmp.name, enhanced_image)
@@ -125,52 +137,53 @@ class OptimizedApp:
             st.error(f"Error processing image: {str(e)}")
             gc.collect()
             return None, None
-    
+
     def display_results(self, results):
-        """Display OCR results with formatting"""
+        """Display OCR results with enhanced formatting"""
         if results and 'extracted_text' in results:
-            st.markdown("### 📝 Extracted Text")
+            # Create tabs for different views
+            tab1, tab2 = st.tabs(["📝 Extracted Text", "ℹ️ Details"])
             
-            # Display text in result box
-            st.markdown('<div class="result-box">', unsafe_allow_html=True)
-            for text in results['extracted_text']:
-                st.write(text)
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Display metadata
-            if 'metadata' in results:
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.info(f"Total Words: {results['metadata']['total_words']}")
-                with col2:
-                    st.info(f"Total Lines: {results['metadata'].get('total_lines', 0)}")
+            with tab1:
+                # Remove any prefix text about "Here is the extracted..."
+                formatted_text = '\n'.join(results['extracted_text'])
+                if formatted_text.lower().startswith("here is"):
+                    formatted_text = '\n'.join(results['extracted_text'][1:])
                 
-                st.success(f"Text extracted using {results['metadata']['engine']}")
-    
+                # Display the text in a code block with automatic scrolling
+                st.code(formatted_text, language=None)
+            
+            with tab2:
+                # Display metadata in a cleaner layout
+                st.markdown("#### 📊 Processing Statistics")
+                with st.container():
+                    cols = st.columns(3)
+                    with cols[0]:
+                        st.metric("Total Words", results['metadata']['total_words'])
+                    with cols[1]:
+                        st.metric("Total Lines", results['metadata']['total_lines'])
+                    with cols[2]:
+                        st.metric("Processing Engine", "Gemini 2.0")
+                
+                # Display corrections if any
+                if 'corrections_made' in results['metadata'] and results['metadata']['corrections_made']:
+                    st.markdown("#### 🔍 Text Improvements")
+                    with st.container():
+                        for correction in results['metadata']['corrections_made']:
+                            st.markdown(f"• {correction}")
+
     def run(self):
         """Main application loop"""
+        # Header with improved styling
+        st.markdown('<div class="header-box">', unsafe_allow_html=True)
         st.title("✍️ Advanced OCR with Gemini")
-        
-        # Sidebar
-        with st.sidebar:
-            st.markdown("### Settings")
-            quality_setting = st.select_slider(
-                "Image Quality",
-                options=["Fast", "Balanced", "High Quality"],
-                value="Balanced"
-            )
-            
-            st.markdown("### About")
-            st.info("""
-            This application uses Google's Gemini Vision API for accurate
-            text extraction from images and documents. Supports both
-            handwritten and printed text.
-            """)
+        st.markdown("Extract text from images and documents using Google's Gemini Vision API")
+        st.markdown("</div>", unsafe_allow_html=True)
         
         # Main content
-        st.markdown("### Upload Document")
+        st.markdown("### 📤 Upload Your Document")
         uploaded_file = st.file_uploader(
-            "Choose an image or PDF",
+            "Supported formats: JPG, JPEG, PNG, PDF",
             type=["jpg", "jpeg", "png", "pdf"]
         )
         
@@ -201,12 +214,12 @@ class OptimizedApp:
                 
                 # Check page limit
                 if len(images) > self.max_pdf_pages:
-                    st.warning(f"Only the first {self.max_pdf_pages} pages will be processed.")
+                    st.warning(f"ℹ️ Only the first {self.max_pdf_pages} pages will be processed.")
                     images = images[:self.max_pdf_pages]
                 
                 # Process each page
                 for i, image in enumerate(images):
-                    st.markdown(f"### Page {i+1}")
+                    st.markdown(f"### 📄 Page {i+1}")
                     
                     # Convert PIL Image to OpenCV format
                     opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -229,11 +242,11 @@ class OptimizedApp:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**Original Document**")
-            st.image(image, use_column_width=True)
+            st.markdown("**📄 Original Document**")
+            st.image(image, use_container_width=True)
         
         process_button = st.button(
-            "Extract Text",
+            "🔍 Extract Text",
             key=f"process_{key_suffix}"
         )
         
@@ -243,8 +256,8 @@ class OptimizedApp:
                 
                 if enhanced_image is not None:
                     with col2:
-                        st.markdown("**Enhanced Document**")
-                        st.image(enhanced_image, use_column_width=True)
+                        st.markdown("**✨ Enhanced Document**")
+                        st.image(enhanced_image, use_container_width=True)
                     
                     self.display_results(results)
     

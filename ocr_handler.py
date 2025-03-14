@@ -4,14 +4,13 @@ import numpy as np
 from PIL import Image
 import os
 import io
+import tempfile
+import gc
 
 class EnhancedOCRHandler:
     def __init__(self, api_key):
         """
-        Initialize Gemini API for OCR using Gemini 2.0 Flash
-        
-        Args:
-            api_key (str): Google API key for Gemini
+        Initialize Gemini API for OCR and text formatting
         """
         try:
             # Configure Gemini API
@@ -20,53 +19,60 @@ class EnhancedOCRHandler:
             # Get Gemini 2.0 Flash model
             self.model = genai.GenerativeModel('gemini-2.0-flash')
             
-            # Set up prompt for better OCR
+            # Combined prompt for OCR and formatting
             self.prompt = """
-            Extract all text from this image accurately.
+            Extract and format all text from this image accurately.
+
             Guidelines:
-            - Include all visible text
-            - Maintain the original formatting and structure
-            - Preserve punctuation and special characters
-            - Keep line breaks as they appear
-            - Return the text exactly as shown in the image
+            1. Extract all visible text exactly as written
+            2. Format the text into proper paragraphs
+            3. Fix any obvious spelling errors
+            4. Maintain original meaning and structure
+            5. Keep all section headers or titles
+            6. Preserve question-answer format if present
+            7. Keep lists and bullet points if present
+            8. Remove unnecessary line breaks
+            9. Keep all original punctuation unless clearly incorrect
+            10. Don't add or remove any information
+            11. DO NOT include any prefix or introduction text
+            12. Start directly with the extracted content
+
+            Provide corrections separately after the main text (if any).
             """
             
         except Exception as e:
             raise Exception(f"Error initializing Gemini API: {str(e)}")
-    
+
     def process_document(self, input_path):
         """
-        Process document using Gemini 2.0 Flash
-        
-        Args:
-            input_path (str): Path to the image file
-            
-        Returns:
-            dict: Extracted text and metadata
+        Process document with enhanced text formatting
         """
         try:
-            # Read and prepare image
+            # Read and process image
             image = self._prepare_image(input_path)
             
-            # Generate response from Gemini
+            # Get response from Gemini
             response = self.model.generate_content(
                 [self.prompt, image],
                 generation_config={
-                    'temperature': 0,  # For consistent results
+                    'temperature': 0,
                     'top_p': 1,
                     'top_k': 1,
-                },
-                stream=False
+                }
             )
             
-            # Format results
-            results = self._format_results(response)
+            # Process and format the response
+            results = self._format_results(response.text)
+            
+            # Clear memory
+            gc.collect()
             
             return results
             
         except Exception as e:
+            gc.collect()
             raise Exception(f"Error processing document: {str(e)}")
-    
+
     def _prepare_image(self, image_path):
         """
         Prepare image for Gemini API
@@ -80,8 +86,8 @@ class EnhancedOCRHandler:
             else:
                 raise ValueError("Unsupported image format")
             
-            # Resize if too large (Gemini has file size limits)
-            max_size = 4096  # Increased for Gemini 2.0
+            # Resize if needed
+            max_size = 4096  # Maximum size for Gemini 2.0
             if max(image.size) > max_size:
                 ratio = max_size / max(image.size)
                 new_size = tuple(int(dim * ratio) for dim in image.size)
@@ -91,44 +97,47 @@ class EnhancedOCRHandler:
             
         except Exception as e:
             raise Exception(f"Error preparing image: {str(e)}")
-    
-    def _format_results(self, response):
+
+    def _format_results(self, response_text):
         """
-        Format Gemini API response
+        Format the response from Gemini
         """
         try:
-            if not response.text:
-                return {
-                    'extracted_text': [],
-                    'details': [],
-                    'metadata': {
-                        'total_words': 0,
-                        'status': 'No text detected'
-                    }
-                }
+            # Split response into sections (formatted text and corrections)
+            sections = response_text.split('\n\n')
             
-            # Split text into lines
-            text_lines = response.text.strip().split('\n')
-            text_lines = [line.strip() for line in text_lines if line.strip()]
+            # Extract formatted text and corrections
+            formatted_text = []
+            corrections = []
+            current_section = 'text'
             
-            # Create details for each line
-            details = [
-                {
-                    'text': line,
-                    'source': 'gemini-2.0-flash',
-                    'confidence': 0.98  # Gemini 2.0 typically has very high accuracy
-                }
-                for line in text_lines
-            ]
+            for section in sections:
+                if 'corrections' in section.lower() or 'changes' in section.lower():
+                    current_section = 'corrections'
+                    continue
+                
+                if current_section == 'text':
+                    formatted_text.extend(line for line in section.split('\n') if line.strip())
+                else:
+                    corrections.extend(line.strip('- ').strip() for line in section.split('\n') if line.strip('- ').strip())
             
-            # Format final results
+            # Create results dictionary
             results = {
-                'extracted_text': text_lines,
-                'details': details,
+                'extracted_text': formatted_text,
+                'original_text': formatted_text.copy(),  # Keep a copy of the formatted text
+                'details': [
+                    {
+                        'text': line,
+                        'source': 'gemini-2.0-flash',
+                        'confidence': 0.98
+                    }
+                    for line in formatted_text if line.strip()
+                ],
                 'metadata': {
-                    'total_words': sum(len(line.split()) for line in text_lines),
-                    'total_lines': len(text_lines),
+                    'total_words': sum(len(line.split()) for line in formatted_text),
+                    'total_lines': len(formatted_text),
                     'engine': 'Google Gemini 2.0 Flash',
+                    'corrections_made': corrections,
                     'status': 'success'
                 }
             }
@@ -137,18 +146,16 @@ class EnhancedOCRHandler:
             
         except Exception as e:
             raise Exception(f"Error formatting results: {str(e)}")
-    
+
     def _clean_text(self, text):
         """
-        Clean and normalize extracted text
+        Clean and normalize text
         """
         if not text:
             return ''
         
         # Remove unwanted characters while preserving meaningful punctuation
         text = ''.join(char for char in text if char.isprintable())
-        
-        # Normalize multiple spaces
         text = ' '.join(text.split())
         
         return text.strip()
