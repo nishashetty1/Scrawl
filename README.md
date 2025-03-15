@@ -17,7 +17,6 @@ Scrawl is a powerful handwriting recognition tool that leverages Google's Gemini
 1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/scrawl.git
-cd scrawl
 ```
 2. Install dependencies:
 ```bash
