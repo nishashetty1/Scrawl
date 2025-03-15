@@ -51,7 +51,7 @@ class OptimizedApp:
     def setup_page(self):
         """Configure Streamlit page with optimized settings"""
         st.set_page_config(
-            page_title="Advanced OCR with Gemini",
+            page_title="Scrawl",
             page_icon="✍️",
             layout="wide",
             initial_sidebar_state="collapsed"
@@ -176,7 +176,7 @@ class OptimizedApp:
         """Main application loop"""
         # Header with improved styling
         st.markdown('<div class="header-box">', unsafe_allow_html=True)
-        st.title("✍️ Scrawl - Advanced OCR with Gemini API")
+        st.title("✍️ Scrawl - Handwriting Made Clear with Gemini")
         st.markdown("Extract text from images and documents using Google's Gemini Vision API")
         st.markdown("</div>", unsafe_allow_html=True)
         
