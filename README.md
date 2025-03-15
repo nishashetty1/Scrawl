@@ -30,7 +30,7 @@ pip install -r requirements.txt
 GOOGLE_API_KEY=your_api_key_here
 ```
 
-##🔧 Usage
+## 🔧 Usage
 1. Start the application:
 ```bash
 streamlit run app.py
@@ -39,7 +39,7 @@ streamlit run app.py
 3. Upload your document (supported formats: JPG, JPEG, PNG, PDF)
 4. Click "Extract Text" to process the document
 
-##⚙️ Technical Details
+## ⚙️ Technical Details
 Scrawl uses several advanced techniques for optimal text extraction:
 
 - Adaptive image enhancement
@@ -48,7 +48,7 @@ Scrawl uses several advanced techniques for optimal text extraction:
 - Character stroke improvement
 - Smart text formatting and correction
 
-##🔑 Requirements
+## 🔑 Requirements
 - Python 3.8+
 - Google Gemini API key
 - Streamlit
@@ -56,5 +56,5 @@ Scrawl uses several advanced techniques for optimal text extraction:
 - NumPy
 - PIL
 
-##🤝 Contributing
+## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
