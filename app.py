@@ -176,7 +176,7 @@ class OptimizedApp:
         """Main application loop"""
         # Header with improved styling
         st.markdown('<div class="header-box">', unsafe_allow_html=True)
-        st.title("✍️ Advanced OCR with Gemini")
+        st.title("✍️ Scrawl - Advanced OCR with Gemini API")
         st.markdown("Extract text from images and documents using Google's Gemini Vision API")
         st.markdown("</div>", unsafe_allow_html=True)
         
