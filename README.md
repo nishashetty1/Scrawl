@@ -1,6 +1,7 @@
 # Scrawl - Advanced Handwriting OCR
 
 Scrawl is a powerful handwriting recognition tool that leverages Google's Gemini Vision API to extract text from handwritten documents, combining advanced image processing with state-of-the-art OCR capabilities.
+You can check out the tool at: [Scrawl OCR Tool](https://scrawl.streamlit.app/)
 
 ## ✨ Features
 
